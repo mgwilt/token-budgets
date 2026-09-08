@@ -1,3 +1,3 @@
-"""Local, exact-content token budgets for Git repositories."""
+"""Local, exact-content token counts and repository budgets."""
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"

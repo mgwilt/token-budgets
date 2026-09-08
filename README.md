@@ -1,12 +1,13 @@
 # token-budgets
 
-Read-only, local token budgets for code and documentation in Git repositories.
-Requires Python 3.11+, Git, and [uv](https://docs.astral.sh/uv/).
+Read-only, local token counts and budgets for code and documentation.
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/); repository checks also need Git.
 
 ```sh
 uv run --script check.py --root . --config token-budgets.json --check
 uv run --script check.py --root . --config token-budgets.json --staged --check
 uv run --script check.py --root . --config token-budgets.json --staged --all --check --json
+uv run --script count.py < input.txt
 ```
 
 The default full check reads tracked working-tree files and untracked files that
@@ -35,6 +36,7 @@ Commit the policy and pin the submodule revision. On a fresh clone, run
 `git submodule update --init --recursive`.
 
 - [Policy reference](docs/policy.md): globs, precedence, thresholds and exclusions.
+- [Raw counts](docs/count.md): complete stdin bytes, JSON metadata and Python API.
 - [Checks and integration](docs/checks.md): snapshots, exit codes, hooks and tests.
 - [Architecture review](docs/review.md): acting on the signal without losing quality.
 

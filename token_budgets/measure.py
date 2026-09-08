@@ -6,6 +6,7 @@ import importlib.metadata
 from .policy import PolicyError, display
 
 PINNED_TOKENIZER = "0.14.0"
+ENCODING_PURPOSE = "repository budget policy, not an exact Codex internal token count"
 
 
 def encoding_for(name: str, tokenizer: dict):
@@ -14,27 +15,33 @@ def encoding_for(name: str, tokenizer: dict):
         installed = importlib.metadata.version("tiktoken")
         tokenizer["version"] = installed
         if installed != PINNED_TOKENIZER:
-            raise PolicyError(f"expected tiktoken {PINNED_TOKENIZER}; run the pinned check.py script with uv")
+            raise PolicyError(f"expected tiktoken {PINNED_TOKENIZER}; use uv run --script with the pinned "
+                              "count.py (stdin) or check.py (repository) entrypoint")
         return tiktoken.get_encoding(name)
     except PolicyError:
         raise
     except Exception as error:
         raise PolicyError(
-            "tokenizer setup failed; run `uv run --script <utility>/check.py --check` with dependency/network "
-            "access once to cache the pinned package and public encoding data. Set TIKTOKEN_CACHE_DIR "
+            "tokenizer setup failed; verify the encoding name and run "
+            "`uv run --script <utility>/count.py < /dev/null` once with dependency/network access "
+            "to cache the pinned package and public encoding data (no Git repository needed). Set TIKTOKEN_CACHE_DIR "
             "to a persistent writable cache if needed. Source text is never uploaded. "
             f"Failure type: {type(error).__name__}"
         ) from error
 
 
+def count_utf8(raw: bytes, encoding) -> int:
+    """Count all exact UTF-8 bytes, including literal special-token-looking text."""
+    return len(encoding.encode(raw.decode("utf-8"), disallowed_special=()))
+
+
 def measure(path: str, raw: bytes, budget: dict, encoding) -> dict:
+    if b"\0" in raw:
+        raise PolicyError(f"selected file {display(path)} contains NUL bytes; explicitly exclude binary content with a reason")
     try:
-        text = raw.decode("utf-8")
+        count = count_utf8(raw, encoding)
     except UnicodeError as error:
         raise PolicyError(f"selected file {display(path)} is not UTF-8; explicitly exclude binary/generated content with a reason") from error
-    if "\0" in text:
-        raise PolicyError(f"selected file {display(path)} contains NUL bytes; explicitly exclude binary content with a reason")
-    count = len(encoding.encode(text, disallowed_special=()))
     status = "over" if count > budget["max_tokens"] else "warning" if count >= budget["warn_tokens"] else "ok"
     prefix = "max" if status == "over" else "warn"
     return {

@@ -7,7 +7,7 @@ import hashlib
 from pathlib import Path
 
 from . import __version__
-from .measure import PINNED_TOKENIZER, encoding_for, measure
+from .measure import ENCODING_PURPOSE, PINNED_TOKENIZER, encoding_for, measure
 from .policy import PolicyError, REVIEW_GUIDANCE, matches, parse, relative_path, select
 from .report import emit, finish
 from .source import Repository
@@ -20,7 +20,7 @@ def checker_triggers(root: Path) -> list[str]:
     except ValueError:
         return []
     if relative == ".":
-        return ["check.py", "token_budgets/**"]
+        return ["check.py", "count.py", "token_budgets/**"]
     return [relative, relative + "/**"]
 
 
@@ -35,7 +35,7 @@ def verify_checker(repo: Repository) -> None:
         return
     entry = repo.entries.get(relative)
     if not entry or entry[0] != "160000":
-        for path in [utility / "check.py", *sorted((utility / "token_budgets").glob("*.py"))]:
+        for path in [utility / "check.py", utility / "count.py", *sorted((utility / "token_budgets").glob("*.py"))]:
             name = path.relative_to(repo.root).as_posix()
             if path.is_symlink() or repo.read(name) != path.read_bytes():
                 raise PolicyError("utility execution files differ from the index; align their working-tree and staged versions before checking")
@@ -43,7 +43,7 @@ def verify_checker(repo: Repository) -> None:
     head = repo.git("rev-parse", "HEAD", foreign=utility).strip().decode("ascii")
     if head != entry[1]:
         raise PolicyError("utility checkout differs from the staged submodule commit; initialize/update the submodule to the staged revision")
-    dirty = repo.git("status", "--porcelain", "--untracked-files=all", "--", "check.py", "token_budgets", foreign=utility)
+    dirty = repo.git("status", "--porcelain", "--untracked-files=all", "--", "check.py", "count.py", "token_budgets", foreign=utility)
     if dirty:
         raise PolicyError("utility execution files have local changes; commit the utility and stage its submodule revision before checking")
 
@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None, *, root: Path | None = None) -> int:
     report = {
         "report_version": 2, "utility_version": __version__, "counting_policy_version": 1,
         "config": args.config, "config_sha256": None,
-        "encoding": None, "encoding_purpose": "repository budget policy, not an exact Codex internal token count",
+        "encoding": None, "encoding_purpose": ENCODING_PURPOSE,
         "tokenizer": {"package": "tiktoken", "version": None, "required_version": PINNED_TOKENIZER},
         "scope": "index-staged" if args.staged else "worktree-full", "full_scan_triggers": [],
         "coverage": {"inventory_files": 0, "unchanged_files": 0},

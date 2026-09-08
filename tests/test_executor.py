@@ -10,7 +10,8 @@ from tests.support import CHECK, RepoCase
 class ExecutorTest(RepoCase):
     def copy_executor(self, destination: Path) -> Path:
         destination.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(CHECK, destination / "check.py")
+        for name in ("check.py", "count.py"):
+            shutil.copy2(CHECK.parent / name, destination / name)
         shutil.copytree(CHECK.parent / "token_budgets", destination / "token_budgets",
                         ignore=shutil.ignore_patterns("__pycache__"))
         (destination / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
@@ -19,7 +20,7 @@ class ExecutorTest(RepoCase):
     def test_root_executor_must_equal_staged_execution_files(self) -> None:
         checker = self.copy_executor(self.root)
         self.write_policy(self.tight_policy(warning=9000, maximum=10000))
-        self.stage("budget.json", "check.py", "token_budgets", ".gitignore")
+        self.stage("budget.json", "check.py", "count.py", "token_budgets", ".gitignore")
         self.run_check("--staged", checker=checker)
         original = checker.read_bytes()
         checker.write_bytes(original + b"\n# harmless unstaged executor change\n")
