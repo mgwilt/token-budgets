@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "encoding": "o200k_base",
+  "include": ["**"],
+  "exclude": [
+    {"glob": "**/__pycache__/**", "reason": "Generated Python bytecode."},
+    {"glob": "**/*.pyc", "reason": "Generated binary Python bytecode."},
+    {"glob": ".venv/**", "reason": "Installed dependencies, maintained upstream."},
+    {"glob": ".pytest_cache/**", "reason": "Generated test cache."},
+    {"glob": ".tiktoken-cache/**", "reason": "Public tokenizer data, maintained upstream."}
+  ],
+  "defaults": {"max_tokens": 4000, "warn_tokens": 3000},
+  "rules": [
+    {"glob": "**/*.md", "reason": "Keep explanatory leaves independently useful.", "max_tokens": 2000, "warn_tokens": 1500},
+    {"glob": "README.md", "reason": "Keep first-use instructions and navigation compact.", "max_tokens": 1000, "warn_tokens": 800}
+  ],
+  "full_scan_on": ["tests/**", "token-budgets.json", ".github/**"]
+}
