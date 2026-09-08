@@ -15,7 +15,7 @@ Unicode, CRLF, NUL characters, and special-token-looking text are accepted
 literally. Repository checks retain their separate NUL/binary-content restriction.
 The tokenizer pin, encoding setup, and exact counting algorithm are shared with
 the repository checker. The default `o200k_base` count is a reproducible policy
-signal, not an exact Codex internal token count.
+signal, not a model-specific billing or context usage estimate.
 
 ## Python API
 

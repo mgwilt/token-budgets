@@ -17,6 +17,13 @@ CHECK = Path(__file__).resolve().parents[1] / "check.py"
 ENCODING = tiktoken.get_encoding("o200k_base")
 
 
+def fixture_environment(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    """Isolate disposable repositories while allowing explicit hook simulations."""
+    inherited = {name: value for name, value in os.environ.items()
+                 if not name.startswith(("GIT_", "LEFTHOOK"))}
+    return {**inherited, **(overrides or {})}
+
+
 def token_count(content: bytes) -> int:
     return len(ENCODING.encode(content.decode("utf-8"), disallowed_special=()))
 
@@ -66,7 +73,7 @@ class RepoCase(unittest.TestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
-            env={**os.environ, **(env or {})},
+            env=fixture_environment(env),
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
         return result.stdout
@@ -104,7 +111,7 @@ class RepoCase(unittest.TestCase):
         command.extend(arguments)
         result = subprocess.run(
             command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
-            env={**os.environ, **(env or {})},
+            env=fixture_environment(env),
         )
         self.assertEqual(result.returncode, expected, result.stdout.decode(errors="replace")
                          + result.stderr.decode(errors="replace"))

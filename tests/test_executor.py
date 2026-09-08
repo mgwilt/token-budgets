@@ -1,13 +1,44 @@
 """Staged snapshots must be checked by their corresponding executor version."""
 
+import os
 from pathlib import Path
 import shutil
 import tempfile
+from unittest.mock import patch
 
-from tests.support import CHECK, RepoCase
+from tests.support import CHECK, RepoCase, fixture_environment
 
 
 class ExecutorTest(RepoCase):
+    def test_inherited_hook_environment_preserves_calling_repository(self) -> None:
+        self.git("config", "user.name", "Caller identity must remain unchanged")
+        caller_git = self.root / ".git"
+        before = {name: (caller_git / name).read_bytes() for name in ("config", "index", "HEAD")}
+        commit = self.git("rev-parse", "HEAD")
+        inherited = {
+            "GIT_DIR": str(caller_git), "GIT_WORK_TREE": str(self.root),
+            "GIT_INDEX_FILE": str(caller_git / "index"), "GIT_PREFIX": "caller/",
+            "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "user.email",
+            "GIT_CONFIG_VALUE_0": "inherited@example.invalid",
+            "LEFTHOOK": "1", "LEFTHOOK_BIN": "/unavailable-inherited-hook",
+        }
+        nested = RepoCase()
+        try:
+            with patch.dict(os.environ, inherited):
+                isolated = fixture_environment()
+                self.assertFalse(any(name.startswith(("GIT_", "LEFTHOOK")) for name in isolated))
+                self.assertEqual(fixture_environment({"GIT_INDEX_FILE": "explicit-index"})["GIT_INDEX_FILE"], "explicit-index")
+                nested.setUp()
+                nested.write("nested.txt", "only the disposable fixture may stage this content")
+                nested.commit("nested.txt")
+                report = nested.run_check("--staged", "--all")
+                self.assertEqual(set(nested.records(report)), {"nested.txt"})
+        finally:
+            nested.doCleanups()
+        self.assertEqual({name: (caller_git / name).read_bytes() for name in before}, before)
+        self.assertEqual(self.git("rev-parse", "HEAD"), commit)
+        self.assertFalse((self.root / "nested.txt").exists())
+
     def copy_executor(self, destination: Path) -> Path:
         destination.mkdir(parents=True, exist_ok=True)
         for name in ("check.py", "count.py"):

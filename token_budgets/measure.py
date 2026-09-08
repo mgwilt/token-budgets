@@ -6,7 +6,7 @@ import importlib.metadata
 from .policy import PolicyError, display
 
 PINNED_TOKENIZER = "0.14.0"
-ENCODING_PURPOSE = "repository budget policy, not an exact Codex internal token count"
+ENCODING_PURPOSE = "repository budget policy, not an exact model billing or context usage count"
 
 
 def encoding_for(name: str, tokenizer: dict):

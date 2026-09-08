@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 
-from tests.support import CHECK, RepoCase, token_count
+from tests.support import CHECK, RepoCase, fixture_environment, token_count
 
 
 class CountingTest(RepoCase):
@@ -74,6 +74,7 @@ class CountingTest(RepoCase):
         result = subprocess.run(
             [sys.executable, str(CHECK), "--root", str(self.root), "--config", "budget.json", "--check"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+            env=fixture_environment(),
         )
         self.assertEqual(result.returncode, report["exit_code"])
         text = (result.stdout + result.stderr).decode()

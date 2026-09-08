@@ -14,5 +14,5 @@
     {"glob": "**/*.md", "reason": "Keep explanatory leaves independently useful.", "max_tokens": 2000, "warn_tokens": 1500},
     {"glob": "README.md", "reason": "Keep first-use instructions and navigation compact.", "max_tokens": 1000, "warn_tokens": 800}
   ],
-  "full_scan_on": ["tests/**", "token-budgets.json", ".github/**"]
+  "full_scan_on": ["tests/**", "token-budgets.json"]
 }
