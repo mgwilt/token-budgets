@@ -12,7 +12,7 @@
   "defaults": {"max_tokens": 4000, "warn_tokens": 3000},
   "rules": [
     {"glob": "**/*.md", "reason": "Keep explanatory leaves independently useful.", "max_tokens": 2000, "warn_tokens": 1500},
-    {"glob": "README.md", "reason": "Keep first-use instructions and navigation compact.", "max_tokens": 1000, "warn_tokens": 800}
+    {"glob": "README.md", "reason": "Keep the complete copyable policy, polyglot examples and matching/precedence explanations together for first use; detailed operational guidance remains linked.", "max_tokens": 2500, "warn_tokens": 2000}
   ],
   "full_scan_on": ["tests/**", "token-budgets.json"]
 }

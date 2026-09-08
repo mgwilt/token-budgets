@@ -1,6 +1,8 @@
 # token-budgets
 
-Per-file token budgets for code and documentation. Review structure; preserve content.
+Count tokens locally and set per-file budgets for code and documentation. Rules
+assign different limits by path. Findings prompt structural review; preserve
+useful code and evidence.
 
 Requires Python 3.11+, Git and [uv](https://docs.astral.sh/uv/).
 
@@ -18,41 +20,176 @@ local; cached counting works offline after dependency/encoding downloads.
 
 ## Polyglot monorepo example
 
-From your repository root, copy the [sample](examples/polyglot.json) (every setting):
+From your repository root:
 
 ```sh
 git submodule add https://github.com/mgwilt/token-budgets.git tools/token-budgets
 cp tools/token-budgets/examples/polyglot.json token-budgets.json
 ```
 
-Illustrative limits:
+This complete `token-budgets.json` covers Markdown, TypeScript, Python and Rust.
+It is identical to the [downloadable sample](examples/polyglot.json). Limits are
+illustrative; choose them through architectural review.
 
-| Example file | Warn / max tokens | Purpose |
+```json
+{
+  "version": 2,
+  "encoding": "o200k_base",
+  "include": ["**"],
+  "exclude": [
+    {
+      "glob": "tools/token-budgets",
+      "reason": "Pinned utility submodule maintained and checked in its own repository."
+    },
+    {
+      "glob": "vendor/**",
+      "reason": "Third-party sources maintained upstream."
+    },
+    {
+      "glob": "**/node_modules/**",
+      "reason": "Installed JavaScript dependencies maintained upstream."
+    },
+    {
+      "glob": "**/.venv/**",
+      "reason": "Installed Python dependencies maintained upstream."
+    },
+    {
+      "glob": "**/__pycache__/**",
+      "reason": "Generated Python bytecode cache."
+    },
+    {
+      "glob": "**/*.pyc",
+      "reason": "Generated binary Python bytecode."
+    },
+    {
+      "glob": "**/dist/**",
+      "reason": "Generated application bundles; review their source files instead."
+    },
+    {
+      "glob": "**/target/**",
+      "reason": "Generated Rust compiler output; review crate sources instead."
+    },
+    {
+      "glob": "**/generated/**",
+      "reason": "Generated clients and bindings; review their schemas and generators instead."
+    },
+    {
+      "glob": "assets/**/*.png",
+      "reason": "Binary image assets reviewed visually rather than tokenized."
+    }
+  ],
+  "defaults": {
+    "max_tokens": 4000,
+    "warn_tokens": 3000,
+    "warn_severity": "warning",
+    "max_severity": "error",
+    "warn_message": "Review this file's responsibilities, interfaces and tests.",
+    "max_message": "Resolve the architectural finding without removing useful code or evidence."
+  },
+  "rules": [
+    {
+      "glob": "**/*.md",
+      "reason": "Keep explanations independently useful and discoverable.",
+      "max_tokens": 2000,
+      "warn_tokens": 1500,
+      "warn_message": "Review navigation and the scope of this explanation.",
+      "max_message": "Preserve evidence and link cohesive explanations where useful."
+    },
+    {
+      "glob": "**/index.md",
+      "reason": "Keep navigation short; linked documents retain the full detail.",
+      "max_tokens": 500,
+      "warn_tokens": 400
+    },
+    {
+      "glob": "apps/web/**/*.ts",
+      "reason": "Review UI state and effects as focused TypeScript modules.",
+      "max_tokens": 2500,
+      "warn_tokens": 2000
+    },
+    {
+      "glob": "services/**/*.py",
+      "reason": "Keep Python service modules focused on cohesive operations.",
+      "max_tokens": 3000,
+      "warn_tokens": 2400
+    },
+    {
+      "glob": "crates/**/*.rs",
+      "reason": "Review Rust module responsibilities and public interfaces.",
+      "max_tokens": 3500,
+      "warn_tokens": 2800
+    },
+    {
+      "glob": "crates/core/src/lib.rs",
+      "reason": "Review public entrypoint growth early; implementation belongs in cohesive modules.",
+      "max_tokens": 800,
+      "warn_tokens": 600,
+      "warn_severity": "error"
+    },
+    {
+      "glob": "docs/reference/**",
+      "reason": "Retain complete protocol references linked from docs/index.md; findings remain review prompts as the protocol evolves.",
+      "max_severity": "warning"
+    }
+  ],
+  "full_scan_on": ["lefthook.yml", "scripts/check-tokens.sh"]
+}
+```
+
+## How globs match
+
+A glob is a path pattern, relative to the repository root. Matching is
+case-sensitive, uses `/`, and includes dotfiles within Git's inventory.
+
+| Glob | Matches | Does not match |
 | --- | --- | --- |
-| `docs/architecture.md` | 1500 / 2000 | Markdown explanations |
-| `docs/index.md` | 400 / 500 | Short navigation |
-| `apps/web/src/checkout.ts` | 2000 / 2500 | TypeScript UI logic |
-| `services/api/orders.py` | 2400 / 3000 | Python service logic |
-| `crates/core/src/query.rs` | 2800 / 3500 | Rust implementation |
-| `crates/core/src/lib.rs` | 600 / 800 | Public entrypoint; blocks at 600 |
-| `docs/reference/protocol.md` | 1500 / 2000 | Cohesive reference; advisory findings |
-| Other included files | 3000 / 4000 | Default budget |
+| `docs/*.md` | `docs/index.md` | `docs/api/index.md` |
+| `docs/**/*.md` | `docs/index.md`, `docs/api/index.md` | `docs/index.txt` |
+| `**/*.md` | `README.md`, `docs/api/index.md` | `docs/api/schema.json` |
+| `src/test?.py` | `src/test1.py` | `src/test10.py` |
+| `src/*.[ch]` | `src/main.c`, `src/main.h` | `src/main.cpp` |
+| `docs/index.md` | That exact path | `nested/docs/index.md` |
 
-## Policy concepts
+`*` matches zero or more characters; `?` matches one; `[ch]` matches one `c` or `h`.
+None crosses `/`. `**` occupies a whole segment and matches zero or more segments.
+There is no brace expansion: use separate `**/*.ts` and `**/*.tsx` patterns.
+
+## How rules apply
+
+A rule matches paths and overrides budget fields; it does not inspect language
+syntax. Every matching rule applies **in list order, field by field**.
+
+For `docs/index.md`, the sample produces:
+
+| Step | Warn tokens | Max tokens |
+| --- | --- | --- |
+| `defaults` | 3000 | 4000 |
+| `**/*.md` | 1500 | 2000 |
+| `**/index.md` | 400 | 500 |
+
+The index rule keeps the Markdown messages and inherited warning/error severities.
+At 400 tokens it warns; at 500 it still warns; at 501 it blocks `--check`.
+
+- `crates/core/src/lib.rs` matches the Rust rule, then the exact-path rule: its
+  `warn_severity: "error"` blocks at 600 tokens.
+- `docs/reference/protocol.md` matches Markdown, then the reference rule:
+  `max_severity: "warning"` makes even an over-budget finding advisory.
+- `vendor/guide.md` stays excluded despite matching `**/*.md`. Rules cannot
+  reinclude an excluded file. Every rule and exclusion records a `reason`.
+
+## Settings at a glance
 
 | Setting | Meaning |
 | --- | --- |
-| `version`, `encoding` | Schema `2`; shared tokenizer across languages. |
-| `include` | `**` covers every path, including new languages. |
-| `exclude` | `{glob, reason}` entries omit dependencies, generated/binary files and submodules. First match wins. |
-| `defaults`, `rules` | Budget, then all matching `{glob, reason, …}` rules in order. Later fields win; exclusions always win. |
+| `version`, `encoding` | Schema `2`; one tokenizer encoding across languages. |
+| `include` | Eligible path globs; `**` also covers newly added languages. |
+| `exclude` | Reasoned omissions; the first matching exclusion wins. Submodules match their exact gitlink path. |
+| `defaults` | Starting per-file budget, not a repository-wide total. |
+| `rules` | Ordered overrides; unmentioned fields stay inherited. |
 | `warn_tokens`, `max_tokens` | Findings start **at** warning and **above** maximum. |
-| `warn_severity`, `max_severity` | Only `error` blocks `--check`; `warning` is advisory. |
-| `warn_message`, `max_message` | Custom review prompts; shared guidance remains. |
-| `full_scan_on` | Staged matches check the whole index; policy/utility changes do this automatically. |
-
-`docs/index.md` inherits defaults → Markdown → index overrides: 400/500 tokens.
-Unmentioned fields stay inherited. [Globs and validation](docs/policy.md).
+| `warn_severity`, `max_severity` | `warning` is advisory; `error` blocks `--check`. |
+| `warn_message`, `max_message` | Custom review prompts alongside shared architecture guidance. |
+| `full_scan_on` | Staged matches check the whole index; policy/utility changes already do this automatically. |
 
 ## Run checks
 
@@ -63,8 +200,10 @@ uv run --script tools/token-budgets/check.py --check
 uv run --script tools/token-budgets/check.py --staged --check
 ```
 
-Use `--staged --all --json` for full index reports. Checks never modify files or echo source. Commit policy and submodule together. Fresh clones: `git submodule update --init --recursive`.
+Use `--staged --all --json` for full index reports. Checks never modify files or
+echo source. Commit policy and submodule together. Fresh clones need
+`git submodule update --init --recursive`.
 
-[Checks, exit codes and hooks](docs/checks.md) · [Python API](docs/count.md) ·
-[Architecture review](docs/review.md) · [Contributing](CONTRIBUTING.md) ·
-[Security](SECURITY.md) · [MIT License](LICENSE)
+[Policy reference](docs/policy.md) · [Checks and hooks](docs/checks.md) ·
+[Python API](docs/count.md) · [Architecture review](docs/review.md) ·
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT License](LICENSE)
