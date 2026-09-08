@@ -52,15 +52,31 @@ class ExecutorTest(RepoCase):
         self.write_policy(value)
         self.write("file.txt", "hello")
         self.commit("budget.json", "file.txt", ".gitmodules", "tools/token-budgets")
-        self.run_check("--all", "--staged", checker=checker)
+        hook_env = {
+            "GIT_DIR": str(self.root / ".git"),
+            "GIT_WORK_TREE": str(self.root),
+            "GIT_INDEX_FILE": str(self.root / ".git" / "index"),
+            "GIT_PREFIX": "caller/",
+        }
+        self.run_check("--all", "--staged", checker=checker, env=hook_env)
+        parent_index = (self.root / ".git" / "index").read_bytes()
+        alternate_index = self.root / ".git" / "alternate-index"
+        alternate_index.write_bytes(parent_index)
+        alternate_env = {**hook_env, "GIT_INDEX_FILE": str(alternate_index)}
+        self.write("alternate.txt", "staged only in the alternate parent index")
+        self.git("add", "--", "alternate.txt", env=alternate_env)
+        alternate_report = self.run_check("--staged", checker=checker, env=alternate_env)
+        self.assertEqual(set(self.records(alternate_report)), {"alternate.txt"})
+        self.assertEqual(self.run_check("--staged", checker=checker, env=hook_env)["files"], [])
+        self.assertEqual((self.root / ".git" / "index").read_bytes(), parent_index)
         checker.write_bytes(checker.read_bytes() + b"\n# local utility change\n")
-        report = self.run_check("--all", "--staged", checker=checker, expected=2)
+        report = self.run_check("--all", "--staged", checker=checker, expected=2, env=hook_env)
         self.assertTrue(any("local changes" in error for error in report["errors"]))
         self.git("-C", str(utility), "add", "--", "check.py")
         self.git("-C", str(utility), "commit", "--quiet", "-m", "test: next executor")
-        report = self.run_check("--all", "--staged", checker=checker, expected=2)
+        report = self.run_check("--all", "--staged", checker=checker, expected=2, env=hook_env)
         self.assertTrue(any("submodule commit" in error for error in report["errors"]))
         self.stage("tools/token-budgets")
-        report = self.run_check("--staged", checker=checker)
+        report = self.run_check("--staged", checker=checker, env=hook_env)
         self.assertEqual(report["scope"], "index-full")
         self.assertIn("file.txt", self.records(report))

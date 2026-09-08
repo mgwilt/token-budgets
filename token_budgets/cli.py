@@ -40,10 +40,10 @@ def verify_checker(repo: Repository) -> None:
             if path.is_symlink() or repo.read(name) != path.read_bytes():
                 raise PolicyError("utility execution files differ from the index; align their working-tree and staged versions before checking")
         return
-    head = repo.git("-C", str(utility), "rev-parse", "HEAD").strip().decode("ascii")
+    head = repo.git("rev-parse", "HEAD", foreign=utility).strip().decode("ascii")
     if head != entry[1]:
         raise PolicyError("utility checkout differs from the staged submodule commit; initialize/update the submodule to the staged revision")
-    dirty = repo.git("-C", str(utility), "status", "--porcelain", "--untracked-files=all", "--", "check.py", "token_budgets")
+    dirty = repo.git("status", "--porcelain", "--untracked-files=all", "--", "check.py", "token_budgets", foreign=utility)
     if dirty:
         raise PolicyError("utility execution files have local changes; commit the utility and stage its submodule revision before checking")
 

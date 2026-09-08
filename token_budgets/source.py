@@ -33,10 +33,17 @@ class Repository:
         if not staged:
             self.paths.update(self.names(self.git("ls-files", "--others", "--exclude-standard", "-z")))
 
-    def git(self, *args: str) -> bytes:
+    def git(self, *args: str, foreign: Path | None = None) -> bytes:
+        environment = dict(os.environ)
+        if foreign is not None:
+            # Hooks export parent repository/index variables. Keep those for the
+            # parent snapshot, but never apply them to a submodule's Git commands.
+            for name in self.git("rev-parse", "--local-env-vars").decode("ascii").splitlines():
+                environment.pop(name, None)
+        environment["GIT_OPTIONAL_LOCKS"] = "0"
         try:
-            process = subprocess.run(["git", "-C", str(self.root), *args], capture_output=True,
-                                     env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
+            process = subprocess.run(["git", "-C", str(foreign or self.root), *args],
+                                     capture_output=True, env=environment)
         except OSError as error:
             raise PolicyError("cannot run Git; install Git and check --root") from error
         if process.returncode:

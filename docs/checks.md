@@ -20,7 +20,9 @@ Tokenizer setup may write dependency/encoding caches outside source content.
 
 The policy path, `.gitmodules`, the executing utility path, and `full_scan_on`
 patterns automatically trigger full index coverage when staged. Checker code in
-a submodule must match the staged gitlink and have clean execution files.
+a submodule must match the staged gitlink and have clean execution files. Git hook
+environment variables are retained for the parent index, including temporary
+commit indexes, and cleared when inspecting a submodule's own repository.
 When the utility is developed directly in the checked repository, its execution
 files must also match the index. Policy deletion or an unstaged-only policy fails; checks never fall back to
 working-tree policy. Empty staged changes pass; an empty full selection fails.
