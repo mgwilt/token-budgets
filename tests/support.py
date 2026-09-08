@@ -58,13 +58,15 @@ class RepoCase(unittest.TestCase):
         self.commit("budget.json")
 
 
-    def git(self, *arguments: str, input: bytes | None = None) -> bytes:
+    def git(self, *arguments: str, input: bytes | None = None,
+            env: dict[str, str] | None = None) -> bytes:
         result = subprocess.run(
             ["git", "-C", str(self.root), *arguments],
             input=input,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
+            env={**os.environ, **(env or {})},
         )
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
         return result.stdout
