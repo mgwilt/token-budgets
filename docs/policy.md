@@ -1,6 +1,7 @@
 # JSON policy version 2
 
-Start with [the example](../token-budgets.json). Required fields are `version`,
+Start with the [complete polyglot sample](../examples/polyglot.json) or this
+repository's [own policy](../token-budgets.json). Required fields are `version`,
 `encoding`, `include`, `exclude`, `defaults`, and `rules`. `full_scan_on` is optional.
 Unknown fields, duplicate JSON keys, invalid types, or invalid effective thresholds
 fail. Version 1 `roots`/`files` policies must be migrated explicitly.

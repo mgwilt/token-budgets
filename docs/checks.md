@@ -1,5 +1,9 @@
 # Checks and integration
 
+Run the utility from the repository being checked, or keep a separate clone and
+pass the target with `uv run --script path/to/token-budgets/check.py --root path/to/repo --check`.
+`--config` selects a policy path relative to that target repository.
+
 ## Snapshot contract
 
 Full worktree checks inventory tracked paths plus nonignored untracked paths.
@@ -54,7 +58,8 @@ check independently. Review policy exceptions and changes to the checker itself.
 
 ## Output and validation
 
-JSON includes report/counting-policy/utility versions, tokenizer package and pin,
+Use `--details all` for per-file counts and exclusion reasons, or `--json` for
+structured metadata. JSON includes report/counting-policy/utility versions, tokenizer package and pin,
 encoding, policy hash, scope, trigger paths, omissions with reasons, per-file byte
 counts/hashes/token counts, effective thresholds and rules, guidance, summary and
 the actual exit code. It has no timestamps, absolute root paths or source excerpts.
